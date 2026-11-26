@@ -87,10 +87,9 @@
     });
     var jam = d.jam || {};
     if (jam.weekday || jam.weekend) {
-      var baris = ['Jam lembur:'];
-      if (jam.weekday) baris.push('Weekday : ' + jam.weekday);
-      if (jam.weekend) baris.push('Weekend : ' + jam.weekend + '.');
-      baris.push('Konsumsi hanya jika lembur sesuai dengan ketentuan jam ini.');
+      var baris = ['Ketentuan lembur:', 'Konsumsi hanya jika lembur sesuai dengan ketentuan jam ini.'];
+      if (jam.weekday) baris.push('Weekday : ' + jam.weekday + '.');
+      if (jam.weekend) baris.push('Weekend : ' + jam.weekend);
       $('jamInfo').textContent = baris.join('\n');
       $('jamInfo').hidden = false;
     }
