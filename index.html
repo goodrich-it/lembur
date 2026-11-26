@@ -21,7 +21,7 @@
     #pilihWeekend { margin-left: 28px; border-left: 3px solid #e3e7ee; padding-left: 10px; }
     button { width: 100%; margin-top: 18px; padding: 13px; font-size: 16px; font-weight: 600; border: 0; border-radius: 8px; background: #1f6feb; color: #fff; cursor: pointer; }
     button:disabled { background: #9db8e8; cursor: wait; }
-    .note { background: #fff8e6; color: #7a4b00; border-radius: 8px; padding: 10px 12px; font-size: 14px; margin: -8px 0 6px; }
+    .note { background: #fff8e6; color: #7a4b00; border-radius: 8px; padding: 10px 12px; font-size: 14px; line-height: 1.5; margin: -8px 0 6px; white-space: pre-line; }
     #msg { margin: 14px 0 0; padding: 0; font-size: 15px; }
     #msg.ok { color: #0a7a33; background: #e7f6ec; padding: 10px 12px; border-radius: 8px; }
     #msg.err { color: #b42318; background: #fdecea; padding: 10px 12px; border-radius: 8px; }
@@ -87,10 +87,11 @@
     });
     var jam = d.jam || {};
     if (jam.weekday || jam.weekend) {
-      var bagian = [];
-      if (jam.weekday) bagian.push('Weekday ' + jam.weekday);
-      if (jam.weekend) bagian.push('Weekend ' + jam.weekend);
-      $('jamInfo').textContent = 'Jam lembur: ' + bagian.join(' · ') + '. Makan & uang lembur hanya jika lembur sesuai jam ini.';
+      var baris = ['Jam lembur:'];
+      if (jam.weekday) baris.push('Weekday : ' + jam.weekday);
+      if (jam.weekend) baris.push('Weekend : ' + jam.weekend + '.');
+      baris.push('Konsumsi hanya jika lembur sesuai dengan ketentuan jam ini.');
+      $('jamInfo').textContent = baris.join('\n');
       $('jamInfo').hidden = false;
     }
     STATUS = d.status;
