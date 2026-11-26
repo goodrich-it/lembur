@@ -36,6 +36,23 @@
     td.no { color: #98a2b3; width: 36px; }
     tfoot td { font-weight: 700; border-top: 2px solid #d0d5dd; }
     .kosong { color: #98a2b3; padding: 18px 0; text-align: center; }
+    .exp h2 { font-size: 18px; margin: 0 0 4px; text-align: center; }
+    .exp .sub { font-size: 14px; color: #5b6476; text-align: center; margin: 0 0 18px; }
+    .exp fieldset { border: 1px solid #e3e7ee; border-radius: 10px; margin: 0 0 14px; padding: 10px 14px 12px; }
+    .exp legend { font-weight: 600; font-size: 14px; padding: 0 4px; }
+    .exp .opsi { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .exp .opsi label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid #e3e7ee; border-radius: 8px; cursor: pointer; font-size: 15px; }
+    .exp .opsi label.on { border-color: #1f6feb; background: #f5f9ff; }
+    .exp .opsi input { margin-top: 3px; width: 18px; height: 18px; }
+    .exp .opsi small { display: block; color: #5b6476; font-size: 13px; margin-top: 2px; }
+    .exp .tgl2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .exp .tgl2 input { width: 130px; padding: 9px; font-size: 15px; border: 1px solid #cfd5df; border-radius: 8px; text-align: center; }
+    .exp .unduh { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+    .exp .unduh button { padding: 13px 22px; font-size: 15px; font-weight: 600; border: 0; border-radius: 8px; color: #fff; cursor: pointer; min-width: 180px; }
+    .exp .unduh button:disabled { opacity: .6; cursor: wait; }
+    #btnXlsx { background: #1d7f4e; } #btnPdf { background: #b42318; }
+    #expMsg { text-align: center; font-size: 14px; margin: 12px 0 0; }
+    #expMsg.ok { color: #0a7a33; } #expMsg.gagal { color: #b42318; }
   </style>
 </head>
 <body>
@@ -43,6 +60,7 @@
     <div class="tabs">
       <button type="button" id="tabHari" class="on">Hari ini</button>
       <button type="button" id="tabRekap">Rekap &amp; dana lembur</button>
+      <button type="button" id="tabExport">Export laporan</button>
     </div>
 
     <section id="panelHari">
@@ -85,11 +103,40 @@
       </table></div>
     </section>
 
+    <section id="panelExport" class="exp" hidden>
+      <h2>Export laporan</h2>
+      <p class="sub">Pilih periode dan isi laporan, lalu unduh sebagai Excel atau PDF.</p>
+      <fieldset>
+        <legend>Periode</legend>
+        <div class="opsi">
+          <label><input type="radio" name="expPeriode" value="hariini" checked> <span>Hari ini<small id="expHariIni"></small></span></label>
+          <label><input type="radio" name="expPeriode" value="custom"> <span>Custom tanggal<small>Pilih dari tanggal sampai tanggal</small></span></label>
+        </div>
+        <div class="tgl2" id="expCustom" hidden>
+          <span>Dari</span><input id="expAwal" aria-label="Dari tanggal (DD-MM-YYYY)" placeholder="DD-MM-YYYY">
+          <span>s/d</span><input id="expAkhir" aria-label="Sampai tanggal (DD-MM-YYYY)" placeholder="DD-MM-YYYY">
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Isi laporan</legend>
+        <div class="opsi">
+          <label><input type="radio" name="expIsi" value="hadir" checked> <span>Kehadiran saja<small>Nama, tanggal, jumlah porsi. Tanpa uang.</small></span></label>
+          <label><input type="radio" name="expIsi" value="uang"> <span>Kehadiran + hitungan lembur<small>Ditambah tarif, jam, dan dana lembur.</small></span></label>
+        </div>
+      </fieldset>
+      <div class="unduh">
+        <button type="button" id="btnXlsx">Unduh Excel</button>
+        <button type="button" id="btnPdf">Unduh PDF</button>
+      </div>
+      <p id="expMsg" role="status"></p>
+    </section>
+
     <p class="upd" id="upd"></p>
     <p class="err" id="err"></p>
   </main>
 
 <script src="api.js"></script>
+<script src="export.js"></script>
 <script>
   var REFRESH_MS = 60000;
   var KODE = new URLSearchParams(location.search).get('kode') || '';
@@ -171,13 +218,85 @@
       .then(function () { $('tampil').disabled = false; $('tampil').textContent = 'Tampilkan'; });
   }
 
-  function pilihTab(r) {
-    $('tabHari').classList.toggle('on', !r); $('tabRekap').classList.toggle('on', r);
-    $('panelHari').hidden = r; $('panelRekap').hidden = !r;
-    if (r) renderRekap(); else renderHari();
+  function pilihTab(nama) {
+    ['Hari', 'Rekap', 'Export'].forEach(function (t) {
+      $('tab' + t).classList.toggle('on', t === nama);
+      $('panel' + t).hidden = t !== nama;
+    });
+    if (nama === 'Rekap') renderRekap();
+    if (nama === 'Hari') renderHari();
+    if (nama === 'Export') { renderExport(); $('upd').textContent = ''; }
   }
-  $('tabHari').onclick = function () { pilihTab(false); };
-  $('tabRekap').onclick = function () { pilihTab(true); };
+  $('tabHari').onclick = function () { pilihTab('Hari'); };
+  $('tabRekap').onclick = function () { pilihTab('Rekap'); };
+  $('tabExport').onclick = function () { pilihTab('Export'); };
+
+  /* ---------- Export ---------- */
+  var muatan = {};
+  function muatScript(src) {
+    if (!muatan[src]) {
+      muatan[src] = new Promise(function (ok, gagal) {
+        var s = document.createElement('script');
+        s.src = src; s.async = true;
+        s.onload = function () { ok(); };
+        s.onerror = function () { delete muatan[src]; s.remove(); gagal(new Error('Komponen export gagal dimuat. Cek internet lalu coba lagi.')); };
+        document.head.appendChild(s);
+      });
+    }
+    return muatan[src];
+  }
+  function pilihanRadio(nama) { var r = document.querySelector('input[name=' + nama + ']:checked'); return r ? r.value : ''; }
+  function expPesan(t, cls) { $('expMsg').textContent = t || ''; $('expMsg').className = cls || ''; }
+  function renderExport() {
+    var hi = hari ? hari.hariIni : '';
+    $('expHariIni').textContent = hi ? hariDariKey(hi) + ', ' + hi : '';
+    if (!$('expAwal').value && hi) { var b = bulan(hi, 0); $('expAwal').value = b.awal; $('expAkhir').value = hi; }
+    $('expCustom').hidden = pilihanRadio('expPeriode') !== 'custom';
+    document.querySelectorAll('.exp .opsi label').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); });
+  }
+  document.querySelectorAll('.exp input[type=radio]').forEach(function (r) { r.addEventListener('change', renderExport); });
+
+  function unduhBlob(blob, nama) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nama;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  }
+  function rentangExport() {
+    if (!hari) throw new Error('Data belum termuat. Muat ulang halaman.');
+    if (pilihanRadio('expPeriode') === 'hariini') return { awal: hari.hariIni, akhir: hari.hariIni };
+    var a = $('expAwal').value.trim(), b = $('expAkhir').value.trim();
+    if (!/^\d{2}-\d{2}-\d{4}$/.test(a) || !/^\d{2}-\d{2}-\d{4}$/.test(b)) throw new Error('Isi tanggal dengan format DD-MM-YYYY, contoh 01-11-2026.');
+    return { awal: a, akhir: b };
+  }
+  function exportLaporan(format) {
+    var tombol = [$('btnXlsx'), $('btnPdf')];
+    var opsi = { uang: pilihanRadio('expIsi') === 'uang' };
+    var r;
+    try { r = rentangExport(); } catch (e) { expPesan(e.message, 'gagal'); return Promise.resolve(); }
+    tombol.forEach(function (b) { b.disabled = true; });
+    expPesan('Menyiapkan ' + (format === 'pdf' ? 'PDF' : 'Excel') + '...');
+    var lib = format === 'pdf'
+      ? muatScript(EXPORT_LIB.jspdf).then(function () { return muatScript(EXPORT_LIB.autotable); })
+      : muatScript(EXPORT_LIB.exceljs);
+    return Promise.all([apiGet({ api: 'financeExport', kode: KODE, awal: r.awal, akhir: r.akhir }), lib])
+      .then(function (hasil) {
+        var d = hasil[0];
+        if (format === 'pdf') {
+          var doc = buatPdf(d, opsi, window.jspdf.jsPDF);
+          unduhBlob(doc.output('blob'), namaFileExport(d, opsi, 'pdf'));
+        } else {
+          return buatExcel(d, opsi, window.ExcelJS).xlsx.writeBuffer().then(function (buf) {
+            unduhBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), namaFileExport(d, opsi, 'xlsx'));
+          });
+        }
+      })
+      .then(function () { expPesan('Selesai. File sudah diunduh.', 'ok'); })
+      .catch(function (e) { expPesan('Gagal: ' + pesanError(e), 'gagal'); })
+      .then(function () { tombol.forEach(function (b) { b.disabled = false; }); });
+  }
+  $('btnXlsx').onclick = function () { exportLaporan('xlsx'); };
+  $('btnPdf').onclick = function () { exportLaporan('pdf'); };
   $('prev').onclick = function () { if (hari) { dipilih = geser(hari.tanggal, -1); muatHari(); } };
   $('next').onclick = function () { if (hari) { dipilih = geser(hari.tanggal, 1); muatHari(); } };
   $('today').onclick = function () { dipilih = null; muatHari(); };
