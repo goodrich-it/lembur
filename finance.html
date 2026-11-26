@@ -73,7 +73,7 @@
       </div>
       <p class="info" id="infoTarif"></p>
       <div class="kartu">
-        <div><span>Total lembur</span><b id="kTotal">–</b></div>
+        <div><span>Total lembur (porsi)</span><b id="kTotal">–</b></div>
         <div><span>Weekday / Weekend</span><b id="kWdWe">–</b></div>
         <div><span>Total jam</span><b id="kJam">–</b></div>
         <div><span>Total dana lembur</span><b id="kDana">–</b></div>
@@ -134,9 +134,10 @@
     if (!rekap) return;
     $('awal').value = rekap.awal; $('akhir').value = rekap.akhir;
     var s = rekap.set, sat = s.mode === 'PER_JAM' ? '/jam' : '/lembur';
-    $('infoTarif').textContent = 'Periode ' + rekap.awal + ' s/d ' + rekap.akhir + ' · Mode ' + s.mode +
-      ' · Tarif weekday ' + rp(s.tarifWeekday) + sat + ' · weekend ' + rp(s.tarifWeekend) + sat;
     var t = rekap.total;
+    $('infoTarif').textContent = 'Periode ' + rekap.awal + ' s/d ' + rekap.akhir + ' · Mode ' + s.mode +
+      ' · Tarif weekday ' + rp(s.tarifWeekday) + sat + ' · weekend ' + rp(s.tarifWeekend) + sat +
+      (t.lemburManajemen ? ' · ' + t.lemburManajemen + ' lembur oleh manajemen (dapat makan, tanpa uang lembur)' : '');
     $('kTotal').textContent = t.weekday + t.weekend;
     $('kWdWe').textContent = t.weekday + ' / ' + t.weekend;
     $('kJam').textContent = t.jam;
@@ -145,7 +146,7 @@
     if (!rekap.rows.length) { var tr = document.createElement('tr'); var td = el('td', 'Tidak ada lembur pada periode ini.', 'kosong'); td.colSpan = 8; tr.appendChild(td); tb.appendChild(tr); }
     rekap.rows.forEach(function (r, i) {
       var tr = document.createElement('tr');
-      [[i + 1, 'no'], [r.nama], [r.departemen], [r.weekday, 'r'], [r.weekend, 'r'], [r.weekday + r.weekend, 'r'], [r.jam, 'r'], [rp(r.total), 'r']]
+      [[i + 1, 'no'], [r.manajemen ? r.nama + ' (Manajemen)' : r.nama], [r.departemen], [r.weekday, 'r'], [r.weekend, 'r'], [r.weekday + r.weekend, 'r'], [r.jam, 'r'], [r.manajemen ? 'Rp 0 (manajemen)' : rp(r.total), 'r']]
         .forEach(function (c) { tr.appendChild(el('td', c[0], c[1])); });
       tb.appendChild(tr);
     });
