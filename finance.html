@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Laporan Lembur (Finance)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f3f5f8; color: #1d2433; }
+    .card { max-width: 900px; margin: 24px auto; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    h1 { font-size: 18px; margin: 0; color: #475467; font-weight: 600; text-align: center; }
+    .tgl { font-size: 20px; font-weight: 600; margin: 6px 0 0; text-align: center; }
+    .angka { font-size: 96px; font-weight: 800; line-height: 1; margin: 16px 0 4px; color: #1f6feb; text-align: center; }
+    .satuan { font-size: 18px; color: #475467; margin: 0 0 14px; text-align: center; }
+    .upd { font-size: 13px; color: #98a2b3; margin: 12px 0 0; text-align: center; }
+    .err { color: #b42318; font-size: 14px; text-align: center; }
+    .tabs { display: flex; gap: 6px; justify-content: center; margin: 0 0 18px; }
+    .tabs button { padding: 9px 18px; font-size: 15px; border: 1px solid #cfd5df; background: #fff; border-radius: 999px; cursor: pointer; }
+    .tabs button.on { background: #1f6feb; border-color: #1f6feb; color: #fff; font-weight: 600; }
+    .nav { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 14px 0; }
+    .nav button { padding: 8px 14px; font-size: 14px; border: 1px solid #cfd5df; background: #fff; border-radius: 8px; cursor: pointer; }
+    .nav button.utama { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+    .nav input { width: 120px; padding: 8px; font-size: 14px; border: 1px solid #cfd5df; border-radius: 8px; text-align: center; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 4px 0 14px; }
+    .chip { background: #eef4ff; color: #1f4fb0; border-radius: 999px; padding: 4px 10px; font-size: 13px; }
+    .kartu { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0 16px; }
+    .kartu > div { flex: 1 1 160px; border: 1px solid #eef0f3; border-radius: 10px; padding: 12px; text-align: center; }
+    .kartu b { display: block; font-size: 26px; margin-top: 4px; color: #1d2433; }
+    .kartu span { font-size: 13px; color: #667085; }
+    .info { font-size: 13px; color: #667085; text-align: center; margin: 0 0 10px; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid #eef0f3; white-space: nowrap; }
+    th { color: #667085; font-size: 12px; font-weight: 600; }
+    td.r, th.r { text-align: right; }
+    td.no { color: #98a2b3; width: 36px; }
+    tfoot td { font-weight: 700; border-top: 2px solid #d0d5dd; }
+    .kosong { color: #98a2b3; padding: 18px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="tabs">
+      <button type="button" id="tabHari" class="on">Hari ini</button>
+      <button type="button" id="tabRekap">Rekap &amp; dana lembur</button>
+    </div>
+
+    <section id="panelHari">
+      <h1 id="judulHari"></h1>
+      <p class="tgl" id="tglHari">Memuat...</p>
+      <div class="angka" id="angkaHari">–</div>
+      <p class="satuan">orang lembur</p>
+      <div class="chips" id="chips"></div>
+      <div class="scroll"><table>
+        <thead><tr><th>#</th><th>Nama</th><th>Departemen</th><th>Jenis</th></tr></thead>
+        <tbody id="tbHari"></tbody>
+      </table></div>
+      <div class="nav">
+        <button type="button" id="prev">◀ Sebelumnya</button>
+        <button type="button" id="today">Hari ini</button>
+        <button type="button" id="next">Berikutnya ▶</button>
+      </div>
+    </section>
+
+    <section id="panelRekap" hidden>
+      <div class="nav">
+        <button type="button" id="blnPrev">◀ Bulan lalu</button>
+        <input id="awal" aria-label="Tanggal awal (DD-MM-YYYY)" placeholder="DD-MM-YYYY">
+        <span>s/d</span>
+        <input id="akhir" aria-label="Tanggal akhir (DD-MM-YYYY)" placeholder="DD-MM-YYYY">
+        <button type="button" id="blnNext">Bulan depan ▶</button>
+        <button type="button" id="tampil" class="utama">Tampilkan</button>
+      </div>
+      <p class="info" id="infoTarif"></p>
+      <div class="kartu">
+        <div><span>Total lembur</span><b id="kTotal">–</b></div>
+        <div><span>Weekday / Weekend</span><b id="kWdWe">–</b></div>
+        <div><span>Total jam</span><b id="kJam">–</b></div>
+        <div><span>Total dana lembur</span><b id="kDana">–</b></div>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>#</th><th>Nama</th><th>Departemen</th><th class="r">Weekday</th><th class="r">Weekend</th><th class="r">Total lembur</th><th class="r">Jam</th><th class="r">Dana (Rp)</th></tr></thead>
+        <tbody id="tbRekap"></tbody>
+        <tfoot id="tfRekap"></tfoot>
+      </table></div>
+    </section>
+
+    <p class="upd" id="upd"></p>
+    <p class="err" id="err"></p>
+  </main>
+
+<script src="api.js"></script>
+<script>
+  var REFRESH_MS = 60000;
+  var KODE = new URLSearchParams(location.search).get('kode') || '';
+  var hari = null, rekap = null;
+  var dipilih = null; // null = ikut hari ini
+  var $ = function (id) { return document.getElementById(id); };
+  function z(x) { return (x < 10 ? '0' : '') + x; }
+  function rp(n) { return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+  function el(tag, text, cls) { var e = document.createElement(tag); e.textContent = text; if (cls) e.className = cls; return e; }
+  function err(m) { $('err').textContent = m || ''; }
+  function geser(key, n) {
+    var p = key.split('-'); var d = new Date(Date.UTC(+p[2], +p[1] - 1, +p[0] + n));
+    return z(d.getUTCDate()) + '-' + z(d.getUTCMonth() + 1) + '-' + d.getUTCFullYear();
+  }
+  function bulan(key, n) { // awal & akhir bulan relatif terhadap key
+    var p = key.split('-'); var a = new Date(Date.UTC(+p[2], +p[1] - 1 + n, 1));
+    var b = new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth() + 1, 0));
+    var f = function (d) { return z(d.getUTCDate()) + '-' + z(d.getUTCMonth() + 1) + '-' + d.getUTCFullYear(); };
+    return { awal: f(a), akhir: f(b) };
+  }
+
+  function renderHari() {
+    if (!hari) return;
+    $('judulHari').textContent = hari.tanggal === hari.hariIni ? 'Jumlah lembur hari ini' : 'Jumlah lembur';
+    $('tglHari').textContent = hari.hari + ', ' + hari.tanggal;
+    $('angkaHari').textContent = hari.jumlah;
+    var perDept = {};
+    hari.daftar.forEach(function (r) { perDept[r.departemen] = (perDept[r.departemen] || 0) + 1; });
+    var chips = $('chips'); chips.innerHTML = '';
+    Object.keys(perDept).forEach(function (d) { chips.appendChild(el('span', d + ': ' + perDept[d], 'chip')); });
+    var tb = $('tbHari'); tb.innerHTML = '';
+    if (!hari.daftar.length) { var tr = document.createElement('tr'); var td = el('td', 'Belum ada yang terdaftar.', 'kosong'); td.colSpan = 4; tr.appendChild(td); tb.appendChild(tr); }
+    hari.daftar.forEach(function (r, i) {
+      var tr = document.createElement('tr');
+      [[i + 1, 'no'], [r.nama], [r.departemen], [r.jenis]].forEach(function (c) { tr.appendChild(el('td', c[0], c[1])); });
+      tb.appendChild(tr);
+    });
+    $('upd').textContent = 'Diperbarui ' + hari.diperbarui + ' WIB · otomatis tiap 60 detik';
+  }
+
+  function renderRekap() {
+    if (!rekap) return;
+    $('awal').value = rekap.awal; $('akhir').value = rekap.akhir;
+    var s = rekap.set, sat = s.mode === 'PER_JAM' ? '/jam' : '/lembur';
+    $('infoTarif').textContent = 'Periode ' + rekap.awal + ' s/d ' + rekap.akhir + ' · Mode ' + s.mode +
+      ' · Tarif weekday ' + rp(s.tarifWeekday) + sat + ' · weekend ' + rp(s.tarifWeekend) + sat;
+    var t = rekap.total;
+    $('kTotal').textContent = t.weekday + t.weekend;
+    $('kWdWe').textContent = t.weekday + ' / ' + t.weekend;
+    $('kJam').textContent = t.jam;
+    $('kDana').textContent = rp(t.dana);
+    var tb = $('tbRekap'); tb.innerHTML = '';
+    if (!rekap.rows.length) { var tr = document.createElement('tr'); var td = el('td', 'Tidak ada lembur pada periode ini.', 'kosong'); td.colSpan = 8; tr.appendChild(td); tb.appendChild(tr); }
+    rekap.rows.forEach(function (r, i) {
+      var tr = document.createElement('tr');
+      [[i + 1, 'no'], [r.nama], [r.departemen], [r.weekday, 'r'], [r.weekend, 'r'], [r.weekday + r.weekend, 'r'], [r.jam, 'r'], [rp(r.total), 'r']]
+        .forEach(function (c) { tr.appendChild(el('td', c[0], c[1])); });
+      tb.appendChild(tr);
+    });
+    var tf = $('tfRekap'); tf.innerHTML = '';
+    var trf = document.createElement('tr');
+    [['', ''], ['TOTAL'], [''], [t.weekday, 'r'], [t.weekend, 'r'], [t.weekday + t.weekend, 'r'], [t.jam, 'r'], [rp(t.dana), 'r']]
+      .forEach(function (c) { trf.appendChild(el('td', c[0], c[1])); });
+    tf.appendChild(trf);
+    $('upd').textContent = 'Diperbarui ' + rekap.diperbarui + ' WIB';
+  }
+
+  function muatHari() {
+    return apiGet({ api: 'financeHari', kode: KODE, tanggal: dipilih })
+      .then(function (d) { hari = d; err(); if (!$('panelHari').hidden) renderHari(); })
+      .catch(function (e) { err('Gagal memuat: ' + pesanError(e)); });
+  }
+  function muatRekap(awal, akhir) {
+    $('tampil').disabled = true; $('tampil').textContent = 'Memuat...';
+    return apiGet({ api: 'financeRekap', kode: KODE, awal: awal, akhir: akhir })
+      .then(function (d) { rekap = d; err(); renderRekap(); })
+      .catch(function (e) { err('Gagal memuat rekap: ' + pesanError(e)); })
+      .then(function () { $('tampil').disabled = false; $('tampil').textContent = 'Tampilkan'; });
+  }
+
+  function pilihTab(r) {
+    $('tabHari').classList.toggle('on', !r); $('tabRekap').classList.toggle('on', r);
+    $('panelHari').hidden = r; $('panelRekap').hidden = !r;
+    if (r) renderRekap(); else renderHari();
+  }
+  $('tabHari').onclick = function () { pilihTab(false); };
+  $('tabRekap').onclick = function () { pilihTab(true); };
+  $('prev').onclick = function () { if (hari) { dipilih = geser(hari.tanggal, -1); muatHari(); } };
+  $('next').onclick = function () { if (hari) { dipilih = geser(hari.tanggal, 1); muatHari(); } };
+  $('today').onclick = function () { dipilih = null; muatHari(); };
+  $('blnPrev').onclick = function () { if (rekap) { var b = bulan(rekap.awal, -1); muatRekap(b.awal, b.akhir); } };
+  $('blnNext').onclick = function () { if (rekap) { var b = bulan(rekap.awal, 1); muatRekap(b.awal, b.akhir); } };
+  $('tampil').onclick = function () { muatRekap($('awal').value.trim(), $('akhir').value.trim()); };
+
+  setInterval(function () { if (!$('panelHari').hidden && KODE) muatHari(); }, REFRESH_MS);
+
+  var awalSelesai = !KODE
+    ? Promise.resolve(err('Link tidak lengkap: kode finance tidak ada. Minta link terbaru ke admin.'))
+    : muatHari().then(function () {
+        if (!hari) return;
+        var b = bulan(hari.hariIni, 0);
+        return muatRekap(b.awal, b.akhir);
+      });
+</script>
+</body>
+</html>

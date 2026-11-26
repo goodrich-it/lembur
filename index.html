@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Absensi Lembur</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f3f5f8; color: #1d2433; }
+    .card { max-width: 480px; margin: 24px auto; background: #fff; border-radius: 12px; padding: 22px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    h1 { font-size: 21px; margin: 0 0 4px; }
+    .muted { color: #667085; font-size: 14px; margin: 0 0 18px; }
+    label.f { display: block; font-weight: 600; margin: 14px 0 6px; font-size: 15px; }
+    input[type=text], select { width: 100%; padding: 11px 12px; font-size: 16px; border: 1px solid #cfd5df; border-radius: 8px; background: #fff; }
+    fieldset { border: 1px solid #e3e7ee; border-radius: 8px; margin: 16px 0 0; padding: 8px 12px 10px; }
+    legend { font-weight: 600; font-size: 15px; padding: 0 4px; }
+    .opt { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; font-size: 15px; cursor: pointer; }
+    .opt input { margin-top: 3px; width: 18px; height: 18px; }
+    .opt small { display: block; color: #667085; font-size: 13px; }
+    .opt.off { opacity: .5; cursor: not-allowed; }
+    #pilihWeekend { margin-left: 28px; border-left: 3px solid #e3e7ee; padding-left: 10px; }
+    button { width: 100%; margin-top: 18px; padding: 13px; font-size: 16px; font-weight: 600; border: 0; border-radius: 8px; background: #1f6feb; color: #fff; cursor: pointer; }
+    button:disabled { background: #9db8e8; cursor: wait; }
+    .note { background: #fff8e6; color: #7a4b00; border-radius: 8px; padding: 10px 12px; font-size: 14px; margin: -8px 0 6px; }
+    #msg { margin: 14px 0 0; padding: 0; font-size: 15px; }
+    #msg.ok { color: #0a7a33; background: #e7f6ec; padding: 10px 12px; border-radius: 8px; }
+    #msg.err { color: #b42318; background: #fdecea; padding: 10px 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Absensi Lembur</h1>
+    <p class="muted" id="hariIni">Memuat...</p>
+    <p class="note" id="jamInfo" hidden></p>
+
+    <form id="f" autocomplete="off" novalidate>
+      <label class="f" for="nama">Nama</label>
+      <input type="text" id="nama" list="daftarNama" placeholder="Ketik lalu pilih nama">
+      <datalist id="daftarNama"></datalist>
+
+      <label class="f" for="dept">Departemen</label>
+      <select id="dept"><option value="">— Pilih departemen —</option></select>
+
+      <fieldset>
+        <legend>Jenis lembur</legend>
+        <label class="opt" id="optWeekday">
+          <input type="radio" name="jenis" value="WEEKDAY">
+          <span>Weekday — hari ini <b id="tglWeekday"></b><small id="infoWeekday"></small></span>
+        </label>
+        <label class="opt" id="optWeekend">
+          <input type="radio" name="jenis" value="WEEKEND">
+          <span>Weekend<small id="infoWeekend"></small></span>
+        </label>
+        <div id="pilihWeekend" hidden>
+          <label class="opt"><input type="checkbox" id="sabtu"> <span>Sabtu <b id="tglSabtu"></b></span></label>
+          <label class="opt"><input type="checkbox" id="minggu"> <span>Minggu <b id="tglMinggu"></b></span></label>
+        </div>
+      </fieldset>
+
+      <button id="btn" type="submit" disabled>Kirim</button>
+      <p id="msg" role="status"></p>
+    </form>
+  </main>
+
+<script src="api.js"></script>
+<script>
+  var STATUS = null;
+  var byNama = {};
+  var siap = false;
+  var $ = function (id) { return document.getElementById(id); };
+  function norm(s) { return String(s || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+  function pesan(teks, jenis) { var m = $('msg'); m.textContent = teks; m.className = jenis || ''; }
+  function radio(v) { return document.querySelector('input[name=jenis][value=' + v + ']'); }
+  function jenisDipilih() { var r = document.querySelector('input[name=jenis]:checked'); return r ? r.value : ''; }
+
+  function isiAwal(d) {
+    d.karyawan.forEach(function (k) {
+      byNama[norm(k.nama)] = k;
+      var o = document.createElement('option');
+      o.value = k.nama;
+      $('daftarNama').appendChild(o);
+    });
+    d.departemen.forEach(function (x) {
+      var o = document.createElement('option');
+      o.value = x; o.textContent = x;
+      $('dept').appendChild(o);
+    });
+    var jam = d.jam || {};
+    if (jam.weekday || jam.weekend) {
+      var bagian = [];
+      if (jam.weekday) bagian.push('Weekday ' + jam.weekday);
+      if (jam.weekend) bagian.push('Weekend ' + jam.weekend);
+      $('jamInfo').textContent = 'Jam lembur: ' + bagian.join(' · ') + '. Makan & uang lembur hanya jika lembur sesuai jam ini.';
+      $('jamInfo').hidden = false;
+    }
+    STATUS = d.status;
+    siap = true;
+    $('btn').disabled = false;
+    render();
+  }
+
+  function render() {
+    if (!STATUS) return;
+    $('hariIni').textContent = STATUS.hariIniNama + ', ' + STATUS.hariIni;
+    $('tglWeekday').textContent = '(' + STATUS.weekday.tanggal + ')';
+    $('infoWeekday').textContent = STATUS.weekday.info;
+    $('infoWeekend').textContent = STATUS.weekend.buka
+      ? 'Sabtu ' + STATUS.weekend.sabtu + ' / Minggu ' + STATUS.weekend.minggu + ' — ' + STATUS.weekend.info
+      : STATUS.weekend.info;
+    $('tglSabtu').textContent = STATUS.weekend.sabtu ? '(' + STATUS.weekend.sabtu + ')' : '';
+    $('tglMinggu').textContent = STATUS.weekend.minggu ? '(' + STATUS.weekend.minggu + ')' : '';
+    [['WEEKDAY', 'optWeekday', STATUS.weekday.buka], ['WEEKEND', 'optWeekend', STATUS.weekend.buka]].forEach(function (x) {
+      var r = radio(x[0]);
+      r.disabled = !x[2];
+      if (!x[2]) r.checked = false;
+      $(x[1]).classList.toggle('off', !x[2]);
+    });
+    $('pilihWeekend').hidden = jenisDipilih() !== 'WEEKEND';
+  }
+
+  $('nama').addEventListener('input', function () {
+    var k = byNama[norm(this.value)];
+    if (k && k.departemen) $('dept').value = k.departemen;
+  });
+  document.querySelectorAll('input[name=jenis]').forEach(function (r) { r.addEventListener('change', render); });
+
+  $('f').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (!siap) return;
+    var k = byNama[norm($('nama').value)];
+    if (!k) return pesan('Nama tidak ada di daftar. Ketik lalu pilih nama dari daftar yang muncul.', 'err');
+    if (!$('dept').value) return pesan('Pilih departemen.', 'err');
+    var jenis = jenisDipilih();
+    if (!jenis) return pesan('Pilih jenis lembur.', 'err');
+    var hari = [];
+    if (jenis === 'WEEKEND') {
+      if ($('sabtu').checked) hari.push('SABTU');
+      if ($('minggu').checked) hari.push('MINGGU');
+      if (!hari.length) return pesan('Centang Sabtu dan/atau Minggu.', 'err');
+    }
+    $('btn').disabled = true; $('btn').textContent = 'Mengirim...'; pesan('');
+    return apiPost({ aksi: 'kirim', payload: { nama: k.nama, departemen: $('dept').value, jenis: jenis, hari: hari } })
+      .then(function (res) {
+        pesan(res.pesan, res.ok ? 'ok' : 'err');
+        if (res.ok) { $('f').reset(); render(); }
+      })
+      .catch(function (e) { pesan('Gagal mengirim: ' + pesanError(e), 'err'); })
+      .then(function () { $('btn').disabled = false; $('btn').textContent = 'Kirim'; });
+  });
+
+  function muatAwal() {
+    return apiGet({ api: 'form' })
+      .then(isiAwal)
+      .catch(function (e) { $('hariIni').textContent = ''; pesan('Gagal memuat form: ' + pesanError(e) + ' Muat ulang halaman.', 'err'); });
+  }
+
+  // Perbarui status buka/tutup tiap menit (kalau halaman dibiarkan terbuka).
+  setInterval(function () {
+    if (!siap) return;
+    apiGet({ api: 'status' }).then(function (s) { STATUS = s; render(); }).catch(function () {});
+  }, 60000);
+
+  var awalSelesai = muatAwal();
+</script>
+</body>
+</html>
